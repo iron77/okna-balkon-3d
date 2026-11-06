@@ -17,11 +17,12 @@
 :root[data-theme="dark"] {
   --scene: #191d22; --panel: #22282f; --ink: #e4e9ee; --muted: #98a5b1; --line: #3a444e; --accent: #73b9da; --accent-ink: #0d1a21;
   --edge: #0b0d10; color-scheme: dark }
-html, body { height: 100%; }
+html, body { height: 100%; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; overscroll-behavior: none; }
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; touch-action: manipulation; }
 body { margin: 0; background: var(--scene); color: var(--ink); font-family: var(--f-ui); font-size: 15px; overflow: hidden;
   padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
 #scena { position: fixed; inset: 0; }
-#scena canvas { display: block; width: 100%; height: 100%; touch-action: none; outline: none; }
+#scena canvas { display: block; width: 100%; height: 100%; touch-action: none; outline: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 .tab { position: fixed; top: calc(env(safe-area-inset-top, 0px) + 12px); left: max(16px, env(safe-area-inset-left, 0px));
   width: min(318px, calc(100% - 32px)); max-height: calc(100% - 96px); overflow: auto; background: var(--panel);
   border: 1px solid var(--line); border-radius: 4px; box-shadow: 0 2px 10px rgb(0 0 0 / 0.08); }
@@ -49,7 +50,7 @@ body { margin: 0; background: var(--scene); color: var(--ink); font-family: var(
 .suwak input { width: 100%; accent-color: var(--accent); margin: 0; }
 .nazwa { position: fixed; bottom: calc(env(safe-area-inset-bottom, 0px) + 12px); left: max(16px, env(safe-area-inset-left, 0px));
   max-width: calc(100% - 32px); background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 7px 11px;
-  font-size: 15px; display: flex; gap: 8px; align-items: baseline; }
+  font-size: 15px; display: flex; gap: 8px; align-items: baseline; pointer-events: none; }
 .nazwa b { font-family: var(--f-num); font-size: 11px; font-weight: 500; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
 .zip { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px; }
 .zip label { display: flex; align-items: center; gap: 6px; font-size: 14.5px; cursor: pointer; }
@@ -61,6 +62,18 @@ body { margin: 0; background: var(--scene); color: var(--ink); font-family: var(
 .akcja:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .blad { position: fixed; inset: auto 16px 50% 16px; text-align: center; color: var(--muted); font-size: 15px; }
 @media (max-width: 600px) { .tab { max-height: calc(100% - 110px); } .widoki button { font-size: 13.5px; } }
+/* palec: cele co najmniej ok. 40 px, panel przewija się sam, bez ciągnięcia strony */
+@media (pointer: coarse) {
+  .tab { overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+  .tab summary { min-height: 44px; box-sizing: border-box; align-items: center; }
+  .widoki button { min-height: 40px; }
+  .akcja { min-height: 44px; }
+  .pokaz label, .zip label { min-height: 40px; }
+  .tab input[type="radio"], .tab input[type="checkbox"] { width: 20px; height: 20px; flex: none; margin: 0; }
+  .suwak input[type="range"] { height: 40px; }
+  .suwak .gora label { min-height: 22px; }
+}
+@media (pointer: coarse) and (max-width: 600px) { .tab { max-height: 56%; } }
 </style>
 
 <div id="scena"></div>
@@ -127,7 +140,7 @@ body { margin: 0; background: var(--scene); color: var(--ink); font-family: var(
       <div class="gora"><label for="cy">Cięcie poziome</label><output id="cy-o" for="cy"></output></div>
       <input type="range" id="cy" min="0" max="1000" step="1" value="1000">
     </div>
-    <p>Obrót – przeciągnij, przesuw – środkowy przycisk (albo Shift), zbliżenie – kółko.</p>
+    <p id="pomoc">Obrót – przeciągnij, przesuw – środkowy przycisk (albo Shift), zbliżenie – kółko.</p>
   </div>
 </details>
 <div class="nazwa" id="nazwa"><b>część</b><span id="nazwa-t">najedź na element</span></div>
@@ -160,6 +173,11 @@ const DOTYK = matchMedia("(pointer: coarse)").matches;                    // tel
 r.setPixelRatio(Math.min(window.devicePixelRatio || 1, DOTYK ? 1.5 : 2)); r.localClippingEnabled = true; host.appendChild(r.domElement);
 const scena = new THREE.Scene();
 const kam = new THREE.PerspectiveCamera(32, 1, 0.03, 60);
+// iOS: przytrzymanie palcem zaznaczało cały obszar (user 6.11), szczypanie powiększało całą stronę (iOS ignoruje user-scalable), dwuklik też
+for (const zd of ["touchstart", "touchmove", "touchend"]) r.domElement.addEventListener(zd, e => { if (e.cancelable) e.preventDefault(); }, { passive: false });
+for (const zd of ["gesturestart", "gesturechange", "gestureend", "selectstart", "dragstart"]) document.addEventListener(zd, e => e.preventDefault(), { passive: false });
+if (DOTYK) document.addEventListener("contextmenu", e => e.preventDefault());
+if (DOTYK) { document.getElementById("pomoc").textContent = "Obrót – jeden palec, przesuw i zbliżenie – dwa palce. Klamka i uchwyt – dotknij."; document.getElementById("nazwa-t").textContent = "dotknij elementu"; }
 const ster = new OrbitControls(kam, r.domElement); ster.enableDamping = true; ster.dampingFactor = 0.12; ster.screenSpacePanning = true;
 ster.mouseButtons = { LEFT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.PAN, RIGHT: null };   // przesuw środkowym przyciskiem, jak w CAD-zie (user 6.11)
 r.domElement.addEventListener("mousedown", e => { if (e.button === 1) e.preventDefault(); });   // bez przewijania środkowym przyciskiem w przeglądarce
@@ -303,9 +321,8 @@ const LEN = {}; let TYLY_POK = false;
 const DZ = {}, mTrafD = new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false });
 function drzwiGr(gr) {
   if (!DZ[gr]) { const d = D.mosk.drzwi[gr], o = new THREE.Group(), w = new THREE.Group();
-    o.position.set(d.x, 0, d.z); w.position.set(-d.x, 0, -d.z); o.add(w); grupa(gr).add(o); DZ[gr] = { d, o, w, t: 0, cel: 0, an: null };
-    const tr = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.08, 0.04), mTrafD); tr.position.set(d.ux, d.uy, d.uz);      // niewidoczny większy obszar kliknięcia
-    tr.userData.nazwa = d.nazwa; tr.userData.drzwi = gr; w.add(tr); cele.push(tr); }
+    o.position.set(d.x, 0, d.z); w.position.set(-d.x, 0, -d.z); o.add(w); grupa(gr).add(o); const tr = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.08, 0.04), mTrafD); tr.position.set(d.ux, d.uy, d.uz);      // niewidoczny większy obszar kliknięcia
+    DZ[gr] = { d, o, w, tr, t: 0, cel: 0, an: null }; tr.userData.nazwa = d.nazwa; tr.userData.drzwi = gr; w.add(tr); cele.push(tr); }
   return DZ[gr].w;
 }
 function zbudujBryle([nazwa, mat, gr, v0, vn, i0, ni, ruch]) {
@@ -646,10 +663,12 @@ function ustaw(n, plynnie) {
   if (n === "pod-slonce" && document.querySelector('input[name="zip"]:checked').value === "brak") { document.getElementById("zip-10").checked = true; wariant(); moskitiera(); }   // bez rolety nie ma czego oglądać
   for (const b of document.querySelectorAll("#widoki button")) b.setAttribute("aria-pressed", String(b.dataset.w === n));
   const p1 = new THREE.Vector3(...w.p), t1 = new THREE.Vector3(...w.t);
+  p1.sub(t1).multiplyScalar(Math.max(1, 0.55 * host.clientHeight / Math.max(host.clientWidth, 1))).add(t1);   // telefon w pionie: cały model w kadrze
   if (!plynnie || matchMedia("(prefers-reduced-motion: reduce)").matches) { kam.position.copy(p1); ster.target.copy(t1); ster.update(); odswiez(); return; }
   lot = { p0: kam.position.clone(), t0: ster.target.clone(), p1, t1, s: performance.now() };
 }
 for (const b of document.querySelectorAll("#widoki button")) b.addEventListener("click", () => {
+  if (DOTYK && matchMedia("(max-width: 600px)").matches) tab.open = false;   // telefon w pionie: panel zasłania prawie wszystko, po wyborze widoku się zwija
   if (location.hash === "#" + b.dataset.w) ustaw(b.dataset.w, true); else location.hash = b.dataset.w; });
 addEventListener("hashchange", () => ustaw(location.hash.slice(1), true));
 
@@ -676,6 +695,16 @@ function uchwytPod(x, y) {
   }
   return null;
 }
+// palec jest gruby: klamka albo uchwyt do 24 px od miejsca dotknięcia -> { okno } albo { drzwi } albo null. Z balkonu tylko uchwyt (klamka jest za szybą), od pokoju najpierw klamka
+const _wPal = new THREE.Vector3();
+function wPoblizu(x, y) {
+  const rc = r.domElement.getBoundingClientRect(), z = kam.position.z > 0.02, widac = o => { for (; o; o = o.parent) if (!o.visible) return false; return true; };
+  const odl = o => { o.updateWorldMatrix(true, false); o.getWorldPosition(_wPal); _wPal.project(kam); return Math.hypot(rc.left + (_wPal.x + 1) / 2 * rc.width - x, rc.top + (1 - _wPal.y) / 2 * rc.height - y); };
+  let naj = 24, wyn = null;
+  if (!z) for (const k of KL) if (widac(k.os)) { const d = odl(k.os); if (d < naj) { naj = d; wyn = { okno: k.s }; } }
+  if (!wyn || z) for (const [gr, g] of Object.entries(DZ)) if (widac(g.tr)) { const d = odl(g.tr); if (d < naj) { naj = d; wyn = { drzwi: gr }; } }
+  return wyn;
+}
 // roleta pod kursorem: przez szybę i siatkę tak, przez ramę nie; klamka ma pierwszeństwo -> trafienie albo null
 function roletaPod(x, y) {
   if (!otwM.visible) return null;                                        // roleta wyłączona
@@ -700,28 +729,34 @@ function przeciagnij(e) {
   const v = d.vUp + przec.t0 * (d.vLand - d.vUp) + (przec.y0 - P.y) * 1000;
   TR[przec.s] = Math.min(1, Math.max(0, (v - d.vUp) / (d.vLand - d.vUp))); opu.value = Math.round(TR[przec.s] * 100); roleta(); drzwiPodRoleta();
 }
+const PALCE = new Set();                                                  // wciśnięte palce / przyciski na płótnie
 r.domElement.addEventListener("pointerdown", e => {                      // w fazie przechwytywania: przed OrbitControls, obrót nie rusza
-  if (e.button !== 0) return;
+  if (przec) { e.stopImmediatePropagation(); return; }                   // drugi palec przy przeciąganiu rolety: bez skutku
+  if (e.button !== 0 || PALCE.size) return;
   const h = roletaPod(e.clientX, e.clientY); if (!h) return;
   e.stopImmediatePropagation();
   const s = h.object.userData.roletaS, n = kam.getWorldDirection(new THREE.Vector3()); n.y = 0; if (n.lengthSq() < 1e-6) n.set(0, 0, 1); n.normalize();
-  przec = { s, d: D.zip[document.querySelector('input[name="zip"]:checked').value][s], t0: TR[s], y0: h.point.y, pl: new THREE.Plane().setFromNormalAndCoplanarPoint(n, h.point) };
+  przec = { id: e.pointerId, s, d: D.zip[document.querySelector('input[name="zip"]:checked').value][s], t0: TR[s], y0: h.point.y, pl: new THREE.Plane().setFromNormalAndCoplanarPoint(n, h.point) };
   try { r.domElement.setPointerCapture(e.pointerId); } catch (_) {}
   r.domElement.style.cursor = "grabbing";
 }, true);
-for (const zd of ["pointerup", "pointercancel"]) r.domElement.addEventListener(zd, e => { if (!przec) return; przec = null; e.stopImmediatePropagation(); ruch = [e.clientX, e.clientY]; r.domElement.style.cursor = ""; }, true);
+for (const zd of ["pointerup", "pointercancel"]) r.domElement.addEventListener(zd, e => { if (!przec || e.pointerId !== przec.id) return; przec = null; e.stopImmediatePropagation(); ruch = [e.clientX, e.clientY]; r.domElement.style.cursor = ""; }, true);
 let ruch = null, wcisk = null;
-r.domElement.addEventListener("pointermove", e => { if (przec) { przeciagnij(e); return; } if (e.pointerType === "mouse") { ruch = [e.clientX, e.clientY]; } });
-r.domElement.addEventListener("pointerdown", e => { wcisk = [e.clientX, e.clientY]; });
+r.domElement.addEventListener("pointermove", e => { if (przec) { if (e.pointerId === przec.id) przeciagnij(e); return; } if (e.pointerType === "mouse") { ruch = [e.clientX, e.clientY]; } });
+r.domElement.addEventListener("pointerdown", e => { PALCE.add(e.pointerId); wcisk = PALCE.size === 1 ? [e.clientX, e.clientY] : null; });   // drugi palec: to już gest, nie dotknięcie
+r.domElement.addEventListener("pointercancel", e => { PALCE.delete(e.pointerId); wcisk = null; });
 r.domElement.addEventListener("pointerup", e => {
-  ruch = [e.clientX, e.clientY];
-  if (wcisk && Math.hypot(e.clientX - wcisk[0], e.clientY - wcisk[1]) < 6) {             // klik (bez obracania) w klamkę
-    const o = trafienie(e.clientX, e.clientY), s = o && o.userData.okno;
-    if (s) klamka(s);
-    else { const gr = uchwytPod(e.clientX, e.clientY); if (gr) uchwyt(gr); }
+  PALCE.delete(e.pointerId);
+  const palec = e.pointerType === "touch", klik = wcisk && Math.hypot(e.clientX - wcisk[0], e.clientY - wcisk[1]) < (palec ? 10 : 6);
+  if (!palec || klik) ruch = [e.clientX, e.clientY];                     // palec: nazwa części tylko po dotknięciu, nie po każdym obrocie
+  if (klik) {                                                            // klik (bez obracania) w klamkę albo uchwyt
+    const o = trafienie(e.clientX, e.clientY), s = o && o.userData.okno, gr = s ? null : uchwytPod(e.clientX, e.clientY), bl = !s && !gr && palec ? wPoblizu(e.clientX, e.clientY) : null;
+    if (s || (bl && bl.okno)) klamka(s || bl.okno);
+    else if (gr || (bl && bl.drzwi)) uchwyt(gr || bl.drzwi);
   }
   wcisk = null;
 });
+r.domElement.addEventListener("webglcontextrestored", () => { odswiez(); });   // iOS zabiera kontekst, gdy karta jest w tle; three odbudowuje dane, trzeba tylko narysować
 
 const tab = document.getElementById("tab");
 function rozmiar() {
@@ -772,7 +807,7 @@ host.addEventListener("wheel", e => {
   lot = null; ster.update(); odswiez();
 }, { capture: true, passive: false });
 // przesuw (środkowy przycisk / dwa palce) i obrót: punkt obrotu na głębokość tego, co pod kursorem – przesuw w skali oglądanej rzeczy
-host.addEventListener("pointerdown", e => { const P = punktPod(e.clientX, e.clientY); if (P) celNaGlebokosc(P); }, { capture: true });
+host.addEventListener("pointerdown", e => { if (PALCE.size) return; const P = punktPod(e.clientX, e.clientY); if (P) celNaGlebokosc(P); }, { capture: true });   // drugi palec: bez ponownego liczenia
 roleta(); wariant(); moskitiera(); tkanina();
 ustaw(location.hash.slice(1) || "zewnatrz", false);
 if (location.search.includes("otwarte")) { for (const s of Object.keys(OTW)) { OTW[s].t = OTW[s].cel = 1; okno(s); } przycisk(); }
@@ -793,7 +828,7 @@ if (location.search.includes("uchylone")) { for (const s of Object.keys(OTW)) { 
     if (k >= 1) { const g = rolAn.g; TR[rolAn.s] = 0; rolAn = null; roleta(); ustawDrzwi(g, 1); } }
   for (const g of Object.values(DZ)) if (g.an) { const k = Math.min(1, (performance.now() - g.an.s) / 1100); g.t = g.an.od + (g.cel - g.an.od) * k; g.o.rotation.y = g.d.zn * g.d.kat * gladko(0, 1, g.t); brudne = true; if (k >= 1) g.an = null; }
   if (ster.update()) brudne = true;
-  if (ruch) { const o = trafienie(...ruch), hR = roletaPod(...ruch), oN = hR ? hR.object : o; nazwaT.textContent = oN ? oN.userData.nazwa : "najedź na element";
+  if (ruch) { const o = trafienie(...ruch), hR = roletaPod(...ruch), oN = hR ? hR.object : o; nazwaT.textContent = oN ? oN.userData.nazwa : DOTYK ? "dotknij elementu" : "najedź na element";
     const hU = uchwytPod(...ruch); if (hU && !hR) nazwaT.textContent = D.mosk.drzwi[hU].nazwa;
     r.domElement.style.cursor = hR ? "grab" : hU || (o && o.userData.okno) ? "pointer" : ""; ruch = null; }
   if (brudne) { wlosy(); tkKolejnosc(); const o_ = kam.position.distanceTo(ster.target), nr = Math.min(0.03, Math.max(0.0003, o_ * 0.02));
@@ -802,7 +837,7 @@ if (location.search.includes("uchylone")) { for (const s of Object.keys(OTW)) { 
     r.render(scena, kam); brudne = false;
     if (!window.__okna3dGotowe) { window.__okna3dGotowe = true; document.getElementById("blad").hidden = true; } }
 })();
-if (matchMedia("(max-width: 600px)").matches) { tab.open = false; rozmiar(); }
+if (DOTYK || matchMedia("(max-width: 600px)").matches) { tab.open = false; rozmiar(); }   // telefon, też poziomo: panel nie zasłania okien na start
 </script>
 
 </body></html>
