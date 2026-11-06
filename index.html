@@ -691,6 +691,7 @@ function uchwytPod(x, y) {
   for (const h of ray.intersectObjects(cele.filter(widac), false)) {
     if (pX.distanceToPoint(h.point) < 0 || pY.distanceToPoint(h.point) < 0) continue;
     if (h.object.userData.drzwi) return h.object.userData.drzwi;
+    for (const [gr, g] of Object.entries(DZ)) if (g.cel && h.object.parent === g.w) return gr;      // otwarte drzwiczki: klik w dowolną ich część zamyka (własny bok zasłania uchwyt)
     if (h.object.material !== mF.szyba && h.object.material !== mF.siatka) return null;
   }
   return null;
@@ -829,7 +830,7 @@ if (location.search.includes("uchylone")) { for (const s of Object.keys(OTW)) { 
   for (const g of Object.values(DZ)) if (g.an) { const k = Math.min(1, (performance.now() - g.an.s) / 1100); g.t = g.an.od + (g.cel - g.an.od) * k; g.o.rotation.y = g.d.zn * g.d.kat * gladko(0, 1, g.t); brudne = true; if (k >= 1) g.an = null; }
   if (ster.update()) brudne = true;
   if (ruch) { const o = trafienie(...ruch), hR = roletaPod(...ruch), oN = hR ? hR.object : o; nazwaT.textContent = oN ? oN.userData.nazwa : DOTYK ? "dotknij elementu" : "najedź na element";
-    const hU = uchwytPod(...ruch); if (hU && !hR) nazwaT.textContent = D.mosk.drzwi[hU].nazwa;
+    const hU = uchwytPod(...ruch); if (hU && !hR) nazwaT.textContent = o && !o.userData.drzwi && o.parent === DZ[hU].w ? o.userData.nazwa + " – klik: zamknij" : D.mosk.drzwi[hU].nazwa;
     r.domElement.style.cursor = hR ? "grab" : hU || (o && o.userData.okno) ? "pointer" : ""; ruch = null; }
   if (brudne) { wlosy(); tkKolejnosc(); const o_ = kam.position.distanceTo(ster.target), nr = Math.min(0.03, Math.max(0.0003, o_ * 0.02));
     const fr = Math.max(12, o_ + 12);                      // dalsza płaszczyzna też wg odległości (6.11: po oddaleniu model znikał)
